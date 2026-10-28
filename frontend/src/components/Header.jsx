@@ -1,0 +1,95 @@
+
+const PAGE_COPY = {
+  dashboard: {
+    title: 'Incident Dashboard',
+    subtitle: 'Live operations overview',
+  },
+  incidents: {
+    title: 'Incidents',
+    subtitle: 'Search, filter, and inspect the incident queue',
+  },
+  settings: {
+    title: 'Settings',
+    subtitle: 'Manage your application preferences',
+  },
+  'create-incident': {
+    title: 'Create Incident',
+    subtitle: 'Report a new incident for investigation',
+  },
+};
+
+export default function Header({
+  onMenuClick,
+  activeNav = 'dashboard',
+}) {
+  const copy = PAGE_COPY[activeNav] ?? PAGE_COPY.dashboard;
+
+  return (
+    <header className="sticky top-0 z-20 flex min-h-[88px] items-center justify-between gap-4 border-b border-slate-200 bg-white/90 px-4 py-4 backdrop-blur-xl transition-colors duration-200 dark:border-slate-800 dark:bg-slate-900/90 sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open navigation menu"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="4" y1="6" x2="20" y2="6" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <line x1="4" y1="18" x2="20" y2="18" />
+          </svg>
+        </button>
+
+        <div className="min-w-0">
+          <h1 className="truncate text-lg font-bold tracking-tight text-slate-900 dark:text-white sm:text-xl">
+            {copy.title}
+          </h1>
+          <p className="mt-1 hidden truncate text-sm text-slate-500 dark:text-slate-400 sm:block">
+            {copy.subtitle}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-3">
+        <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 sm:flex dark:border-emerald-900/60 dark:bg-emerald-950/40">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+            Systems operational
+          </span>
+        </div>
+
+        {/* Decorative profile icon — intentionally non-clickable */}
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          title="Demo profile"
+          aria-label="Profile"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="8" r="4" />
+            <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+          </svg>
+        </div>
+      </div>
+    </header>
+  );
+}
