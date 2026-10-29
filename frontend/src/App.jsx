@@ -1,45 +1,46 @@
-import { useEffect, useState } from 'react';
 
-import Header from './components/Header';
-import IncidentsPage from './components/IncidentsPage';
-import OverviewCards from './components/OverviewCards';
-import RecentIncidentsTable from './components/RecentIncidentsTable';
-import Sidebar from './components/Sidebar';
-import CreateIncident from './components/CreateIncident';
-import Settings from './components/Settings';
+import { useEffect, useState } from "react";
 
-import LoginPage from './pages/LoginPage';
-import ProfilePage from './pages/ProfilePage';
-import supabase from './supabaseClient';
+import Header from "./components/Header";
+import IncidentsPage from "./components/IncidentsPage";
+import OverviewCards from "./components/OverviewCards";
+import RecentIncidentsTable from "./components/RecentIncidentsTable";
+import Sidebar from "./components/Sidebar";
+import CreateIncident from "./components/CreateIncident";
+import Settings from "./components/Settings";
 
-const STORAGE_KEY = 'incident-triage-settings';
-const NAV_STORAGE_KEY = 'incident_active_nav';
-const INCIDENT_STORAGE_KEY = 'incident_selected_id';
+import LoginPage from "./pages/LoginPage";
+import ProfilePage from "./pages/ProfilePage";
+import supabase from "./supabaseClient";
+
+const STORAGE_KEY = "incident-triage-settings";
+const NAV_STORAGE_KEY = "incident_active_nav";
+const INCIDENT_STORAGE_KEY = "incident_selected_id";
 
 const VALID_PAGES = [
-  'dashboard',
-  'incidents',
-  'create-incident',
-  'settings',
-  'profile',
+  "dashboard",
+  "incidents",
+  "create-incident",
+  "settings",
+  "profile",
 ];
 
 function getSavedAppearance() {
   try {
     const saved = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) || '{}'
+      localStorage.getItem(STORAGE_KEY) || "{}"
     );
 
-    return saved.appearance === 'dark' ? 'dark' : 'light';
+    return saved.appearance === "dark" ? "dark" : "light";
   } catch {
-    return 'light';
+    return "light";
   }
 }
 
 function getSavedActiveNav() {
   const saved = sessionStorage.getItem(NAV_STORAGE_KEY);
 
-  return VALID_PAGES.includes(saved) ? saved : 'dashboard';
+  return VALID_PAGES.includes(saved) ? saved : "dashboard";
 }
 
 function getSavedIncidentId() {
@@ -78,7 +79,7 @@ function App() {
         setSelectedIncidentId(null);
         setSidebarOpen(false);
         setGlobalToast(null);
-        setActiveNav('dashboard');
+        setActiveNav("dashboard");
       }
     });
 
@@ -96,7 +97,7 @@ function App() {
         }
       } catch (error) {
         console.error(
-          'Unable to restore the authentication session:',
+          "Unable to restore the authentication session:",
           error
         );
 
@@ -122,8 +123,8 @@ function App() {
   useEffect(() => {
     function applyAppearance(nextAppearance) {
       document.documentElement.classList.toggle(
-        'dark',
-        nextAppearance === 'dark'
+        "dark",
+        nextAppearance === "dark"
       );
 
       document.documentElement.style.colorScheme = nextAppearance;
@@ -133,19 +134,19 @@ function App() {
 
     function handleSettingsUpdate(event) {
       const nextAppearance =
-        event.detail?.appearance === 'dark' ? 'dark' : 'light';
+        event.detail?.appearance === "dark" ? "dark" : "light";
 
       applyAppearance(nextAppearance);
     }
 
     window.addEventListener(
-      'incident-triage-settings-updated',
+      "incident-triage-settings-updated",
       handleSettingsUpdate
     );
 
     return () => {
       window.removeEventListener(
-        'incident-triage-settings-updated',
+        "incident-triage-settings-updated",
         handleSettingsUpdate
       );
     };
@@ -181,12 +182,13 @@ function App() {
     sessionStorage.removeItem(NAV_STORAGE_KEY);
     sessionStorage.removeItem(INCIDENT_STORAGE_KEY);
 
-    setActiveNav('create-incident');
+    setActiveNav("create-incident");
     setSelectedIncidentId(null);
     setSidebarOpen(false);
     setGlobalToast(null);
   }
 
+  // Sign out from Supabase and clear the current UI state.
   async function handleLogout() {
     try {
       const { error } = await supabase.auth.signOut();
@@ -197,16 +199,16 @@ function App() {
       sessionStorage.removeItem(INCIDENT_STORAGE_KEY);
 
       setSession(null);
-      setActiveNav('dashboard');
+      setActiveNav("dashboard");
       setSelectedIncidentId(null);
       setSidebarOpen(false);
       setGlobalToast(null);
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
 
       setGlobalToast({
-        type: 'error',
-        message: error.message || 'Unable to log out. Please try again.',
+        type: "error",
+        message: error.message || "Unable to log out. Please try again.",
       });
     }
   }
@@ -219,20 +221,20 @@ function App() {
 
   function handleOpenIncident(incidentId) {
     setSelectedIncidentId(incidentId);
-    setActiveNav('incidents');
+    setActiveNav("incidents");
     setSidebarOpen(false);
   }
 
   function handleIncidentCreated(data) {
     if (!data?.id) {
       console.error(
-        'Incident creation succeeded without returning an incident ID.'
+        "Incident creation succeeded without returning an incident ID."
       );
       return;
     }
 
     setSelectedIncidentId(data.id);
-    setActiveNav('incidents');
+    setActiveNav("incidents");
     setSidebarOpen(false);
   }
 
@@ -240,7 +242,7 @@ function App() {
     if (!incident?.id) return;
 
     setGlobalToast({
-      type: 'success',
+      type: "success",
       message: `Incident #${incident.id} created successfully!`,
     });
 
@@ -268,27 +270,27 @@ function App() {
       {/* Global toast */}
       {globalToast && (
         <div
-          role={globalToast.type === 'error' ? 'alert' : 'status'}
-          aria-live={globalToast.type === 'error' ? 'assertive' : 'polite'}
+          role={globalToast.type === "error" ? "alert" : "status"}
+          aria-live={globalToast.type === "error" ? "assertive" : "polite"}
           className={`fixed right-5 top-5 z-[100] flex w-auto max-w-[320px] items-start gap-2 rounded-xl border bg-white p-3 shadow-xl dark:bg-slate-900 ${
-            globalToast.type === 'success'
-              ? 'border-emerald-200 dark:border-emerald-400/30'
-              : 'border-red-200 dark:border-red-400/30'
+            globalToast.type === "success"
+              ? "border-emerald-200 dark:border-emerald-400/30"
+              : "border-red-200 dark:border-red-400/30"
           }`}
         >
           <span
             className={`mt-0.5 text-lg ${
-              globalToast.type === 'success'
-                ? 'text-emerald-600'
-                : 'text-red-600'
+              globalToast.type === "success"
+                ? "text-emerald-600"
+                : "text-red-600"
             }`}
           >
-            {globalToast.type === 'success' ? '✓' : '✕'}
+            {globalToast.type === "success" ? "✓" : "✕"}
           </span>
 
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              {globalToast.type === 'success' ? 'Success' : 'Error'}
+              {globalToast.type === "success" ? "Success" : "Error"}
             </p>
 
             <p className="mt-1 break-words text-sm text-slate-600 dark:text-slate-300">
@@ -318,32 +320,33 @@ function App() {
         <Header
           onMenuClick={() => setSidebarOpen(true)}
           activeNav={activeNav}
-          onProfileClick={() => handleNavigate('profile')}
+          onProfileClick={() => handleNavigate("profile")}
+          onLogout={handleLogout}
         />
 
         <main className="flex-1 p-4 transition-colors duration-200 sm:p-6">
-          {activeNav === 'dashboard' ? (
+          {activeNav === "dashboard" ? (
             <>
               <OverviewCards />
               <RecentIncidentsTable
                 onIncidentClick={handleOpenIncident}
               />
             </>
-          ) : activeNav === 'incidents' ? (
+          ) : activeNav === "incidents" ? (
             <IncidentsPage
-              key={selectedIncidentId ?? 'incidents-list'}
+              key={selectedIncidentId ?? "incidents-list"}
               initialSelectedId={selectedIncidentId}
               onIncidentOpened={() => setSelectedIncidentId(null)}
             />
-          ) : activeNav === 'create-incident' ? (
+          ) : activeNav === "create-incident" ? (
             <CreateIncident onCreated={handleCreateSuccess} />
-          ) : activeNav === 'settings' ? (
+          ) : activeNav === "settings" ? (
             <Settings />
-          ) : activeNav === 'profile' ? (
+          ) : activeNav === "profile" ? (
             <ProfilePage
               user={session.user}
               onLogout={handleLogout}
-              onBack={() => handleNavigate('dashboard')}
+              onBack={() => handleNavigate("dashboard")}
             />
           ) : (
             <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
@@ -353,7 +356,7 @@ function App() {
 
               <button
                 type="button"
-                onClick={() => handleNavigate('dashboard')}
+                onClick={() => handleNavigate("dashboard")}
                 className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900"
               >
                 Go to dashboard

@@ -27,19 +27,21 @@ function ReportField({ label, value }) {
   if (
     value === null ||
     value === undefined ||
-    value === '' ||
+    value === "" ||
     (Array.isArray(value) && value.length === 0)
   ) {
     return null;
   }
 
   const displayValue =
-    typeof value === 'string'
+    typeof value === "string"
       ? value
-      : JSON.stringify(value, null, 2);
+      : typeof value === "object"
+        ? JSON.stringify(value, null, 2)
+        : String(value);
 
   return (
-    <div className="border-b border-slate-100 py-4 last:border-0 dark:border-slate-700">
+    <div>
       <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         {label}
       </h3>
@@ -48,6 +50,16 @@ function ReportField({ label, value }) {
         {displayValue}
       </p>
     </div>
+  );
+}
+
+function getFirstValue(...values) {
+  return values.find(
+    (value) =>
+      value !== null &&
+      value !== undefined &&
+      value !== "" &&
+      !(Array.isArray(value) && value.length === 0)
   );
 }
 
@@ -63,53 +75,124 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
+function getStatusLabel(status) {
+  if (!status) return null;
+
+  const normalized = String(status).toLowerCase().replace(/[_-]/g, " ");
+
+  if (normalized.includes("resolved")) return "Resolved";
+  if (normalized.includes("investigat")) return "Investigating";
+  if (normalized.includes("open")) return "Open";
+  if (normalized.includes("closed")) return "Closed";
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function getStatusStyle(status) {
+  const normalized = String(status || "").toLowerCase();
+
+  if (normalized.includes("resolved") || normalized.includes("closed")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/50 dark:text-emerald-300";
+  }
+
+  if (normalized.includes("investigat")) {
+    return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/50 dark:text-amber-300";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300";
+}
+
 export default function FinalReport({
   report,
   approved,
   loading = false,
-  error = '',
+  error = "",
   onRefresh,
 }) {
   const hasReport =
     report !== null &&
     report !== undefined &&
-    (typeof report === 'string'
+    (typeof report === "string"
       ? report.trim().length > 0
-      : Object.keys(report).length > 0);
+      : typeof report === "object" && Object.keys(report).length > 0);
+
+  const reportData =
+    typeof report === "object" && report !== null ? report : {};
 
   const reportText =
-    typeof report === 'string'
+    typeof report === "string"
       ? report
-      : report?.report ||
-        report?.final_report ||
-        report?.content ||
-        report?.report_content;
+      : getFirstValue(
+          reportData.report,
+          reportData.final_report,
+          reportData.content,
+          reportData.report_content
+        );
 
-  const updatedAt =
-    report?.updated_at ||
-    report?.last_updated ||
-    report?.modified_at;
+  const updatedAt = getFirstValue(
+    reportData.updated_at,
+    reportData.last_updated,
+    reportData.modified_at
+  );
 
-  const investigationNotes =
-    report?.investigation_notes ??
-    report?.investigation_details ??
-    report?.investigation;
+  // Prefer the latest incident state supplied by the report API.
+  const status = getStatusLabel(
+    getFirstValue(
+      reportData.status,
+      reportData.incident_status,
+      reportData.current_status
+    )
+  );
 
-  const resolutionNotes =
-    report?.resolution_notes ??
-    report?.resolution_details ??
-    report?.resolution;
+  const title = getFirstValue(
+    reportData.title,
+    reportData.incident_title,
+    reportData.incident_name
+  );
 
-  const timeline =
-    report?.timeline ??
-    report?.history ??
-    report?.audit_history;
+  const incidentId = getFirstValue(
+    reportData.incident_id,
+    reportData.id
+  );
+
+  const service = reportData.service;
+  const severity = reportData.severity;
+
+  const summary = getFirstValue(
+    reportData.summary,
+    reportData.incident_summary,
+    reportData.ai_summary
+  );
+
+  const rootCause = getFirstValue(
+    reportData.approved_root_cause,
+    reportData.human_approved_root_cause,
+    reportData.root_cause,
+    reportData.possible_root_cause
+  );
+
+  const resolution = getFirstValue(
+    reportData.resolution_summary,
+    reportData.resolution_notes,
+    reportData.resolution_details,
+    reportData.resolution
+  );
+
+  const verification = getFirstValue(
+    reportData.verification_summary,
+    reportData.verification_evidence,
+    reportData.verification
+  );
+
+  const isResolved =
+    status?.toLowerCase() === "resolved" ||
+    status?.toLowerCase() === "closed";
 
   return (
     <Section
       eyebrow="04 · Documentation"
       title="Final incident report"
-      description="The incident report generated after human review. Refresh to retrieve the latest available report data."
+      description="A concise summary of the approved incident analysis and its latest resolution state."
     >
       {loading ? (
         <div
@@ -117,7 +200,7 @@ export default function FinalReport({
           role="status"
         >
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Loading final report…
+            Loading latest report…
           </p>
         </div>
       ) : !approved ? (
@@ -132,8 +215,8 @@ export default function FinalReport({
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Approve the revised incident analysis to unlock the final
-              report for this demo session.
+              Approve the incident analysis to make the initial report
+              available. The resolution can be added later.
             </p>
           </div>
         </div>
@@ -151,7 +234,7 @@ export default function FinalReport({
               type="button"
               onClick={onRefresh}
               disabled={loading}
-              className="mt-3 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950/50"
+              className="mt-3 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300"
             >
               Retry loading report
             </button>
@@ -160,8 +243,12 @@ export default function FinalReport({
       ) : hasReport ? (
         <div>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/50 dark:text-emerald-300">
-              Approved
+            <span
+              className={`rounded-full border px-3 py-1 text-xs font-semibold ${getStatusStyle(
+                status
+              )}`}
+            >
+              {status || "Approved"}
             </span>
 
             {onRefresh && (
@@ -183,119 +270,60 @@ export default function FinalReport({
           )}
 
           {reportText ? (
-            <div className="space-y-4">
-              <div className="whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm leading-7 text-slate-700 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300 sm:p-5">
-                {reportText}
-              </div>
-
-              {/* Display newer incident notes even when the report is text. */}
-              {(investigationNotes ||
-                resolutionNotes ||
-                timeline) && (
-                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4 dark:border-slate-700 dark:divide-slate-700 sm:px-5">
-                  <ReportField
-                    label="Latest investigation notes"
-                    value={investigationNotes}
-                  />
-
-                  <ReportField
-                    label="Latest resolution notes"
-                    value={resolutionNotes}
-                  />
-
-                  <ReportField
-                    label="Incident timeline and history"
-                    value={timeline}
-                  />
-                </div>
-              )}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-950/60 sm:p-5">
+              <ReportField label="Report" value={reportText} />
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-700">
+            <div className="space-y-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-950/60 sm:p-5">
+              {(title || incidentId) && (
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                    {title || `Incident #${incidentId}`}
+                  </h3>
+
+                  {incidentId && title && (
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Incident #{incidentId}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <ReportField label="Service" value={service} />
+                <ReportField label="Severity" value={severity} />
+              </div>
+
+              <ReportField label="Summary" value={summary} />
+
               <ReportField
-                label="Incident"
-                value={report.title}
+                label="Root Cause"
+                value={rootCause || "Not available yet."}
               />
 
               <ReportField
-                label="Incident ID"
-                value={report.incident_id ?? report.id}
-              />
-
-              <ReportField
-                label="Service"
-                value={report.service}
-              />
-
-              <ReportField
-                label="Severity"
-                value={report.severity}
-              />
-
-              <ReportField
-                label="Status"
-                value={report.status}
-              />
-
-              <ReportField
-                label="Summary"
-                value={report.summary}
-              />
-
-              <ReportField
-                label="AI analysis"
-                value={report.ai_summary}
-              />
-
-              <ReportField
-                label="Human-approved root-cause hypothesis"
+                label="Resolution"
                 value={
-                  report.approved_root_cause ||
-                  report.root_cause ||
-                  report.possible_root_cause
+                  resolution ||
+                  (isResolved
+                    ? "The incident is marked resolved, but no resolution summary was returned."
+                    : "Pending investigation and verification.")
                 }
               />
 
-              <ReportField
-                label="Investigation notes"
-                value={investigationNotes}
-              />
-
-              <ReportField
-                label="Resolution notes"
-                value={resolutionNotes}
-              />
-
-              <ReportField
-                label="Verification evidence"
-                value={
-                  report.verification ||
-                  report.verification_evidence
-                }
-              />
-
-              <ReportField
-                label="Timeline and audit history"
-                value={timeline}
-              />
-
-              <ReportField
-                label="Created at"
-                value={formatDate(report.created_at)}
-              />
-
-              <ReportField
-                label="Last updated"
-                value={formatDate(updatedAt)}
-              />
+              {isResolved && verification && (
+                <ReportField
+                  label="Verification"
+                  value={verification}
+                />
+              )}
             </div>
           )}
 
-          <p className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-            Approval indicates that the reviewer approved the documented
-            analysis. It does not independently establish that the
-            proposed root cause is correct. Verification evidence should
-            be recorded separately.
+          <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            {isResolved
+              ? "This report reflects the resolved incident state and the resolution information returned by the server."
+              : "This report is available after root-cause approval and can be updated as the incident progresses. Approval does not by itself mean the incident is resolved."}
           </p>
         </div>
       ) : (
@@ -309,7 +337,8 @@ export default function FinalReport({
             <button
               type="button"
               onClick={onRefresh}
-              className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+              disabled={loading}
+              className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               Load report
             </button>

@@ -119,11 +119,7 @@ export default function IncidentHeader({
               ))}
             </select>
 
-            {savingStatus && (
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Saving status…
-              </p>
-            )}
+            
 
             {statusError && (
               <p className="mt-3 text-xs leading-5 text-rose-600 dark:text-rose-400">
