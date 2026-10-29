@@ -1,21 +1,22 @@
-from sentence_transformers import SentenceTransformer
 
+import re
+import hashlib
+import math
 
-model = None
+DIMENSIONS = 384
 
+def create_embedding(text: str) -> list[float]:
+    vector = [0.0] * DIMENSIONS
+    words = re.findall(r"\b[a-z0-9_]+\b", text.lower())
 
-def get_model():
-    global model
+    for word in words:
+        digest = hashlib.sha256(word.encode("utf-8")).digest()
+        index = int.from_bytes(digest[:4], "big") % DIMENSIONS
+        vector[index] += 1.0
 
-    if model is None:
-        print("Loading embedding model...")
-        model = SentenceTransformer("all-MiniLM-L6-v2")
-        print("Embedding model loaded.")
+    magnitude = math.sqrt(sum(x * x for x in vector))
 
-    return model
+    if magnitude:
+        vector = [x / magnitude for x in vector]
 
-
-def create_embedding(text):
-    embedding_model = get_model()
-
-    return embedding_model.encode(text).tolist()
+    return vector
