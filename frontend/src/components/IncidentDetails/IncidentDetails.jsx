@@ -147,6 +147,7 @@ export default function IncidentDetails({
   const [noteError, setNoteError] = useState('');
 
   const [resolutionText, setResolutionText] = useState('');
+  const [savedResolution, setSavedResolution] = useState('');
   const [savingResolution, setSavingResolution] = useState(false);
   const [resolutionError, setResolutionError] = useState('');
 
@@ -193,7 +194,7 @@ export default function IncidentDetails({
         : 'Open';
 
     setStatus(incomingStatus);
-  }, [incident?.id]);
+  }, [incident?.id, incident?.status]);
 
   const fetchActivities = useCallback(async () => {
     if (!incidentId) return;
@@ -208,9 +209,28 @@ export default function IncidentDetails({
         ? data
         : data?.activities || data?.items || [];
 
-      setActivities(Array.isArray(items) ? items : []);
+      const safeItems = Array.isArray(items) ? items : [];
+
+      setActivities(safeItems);
+
+      // Restore the latest saved resolution from the persisted timeline.
+      const resolutionActivity = [...safeItems]
+        .filter(
+          (item) =>
+            item?.event_type === 'resolution_added' &&
+            typeof item?.message === 'string' &&
+            item.message.trim()
+        )
+        .sort((a, b) => {
+          const dateA = new Date(a?.created_at || 0).getTime();
+          const dateB = new Date(b?.created_at || 0).getTime();
+          return dateB - dateA;
+        })[0];
+
+      setSavedResolution(resolutionActivity?.message || '');
     } catch (error) {
       setActivities([]);
+      setSavedResolution('');
 
       setActivityError(
         getSafeMessage(
@@ -299,6 +319,7 @@ export default function IncidentDetails({
     setNoteText('');
     setNoteError('');
     setResolutionText('');
+    setSavedResolution('');
     setResolutionError('');
     setToast(null);
 
@@ -309,14 +330,8 @@ export default function IncidentDetails({
   async function handleStatusChange(newStatus) {
     if (newStatus === status || savingStatus) return;
 
-    if (newStatus === 'Resolved' && !resolutionText.trim()) {
-      showToast(
-        'error',
-        'Add the fix and verification details before resolving this incident.'
-      );
-      return;
-    }
-
+    // The backend remains the source of truth for saved resolution validation.
+    // This avoids blocking resolution because the editor was cleared after saving.
     const previousStatus = status;
 
     setStatus(newStatus);
@@ -421,9 +436,7 @@ export default function IncidentDetails({
     event?.preventDefault();
 
     if (!resolutionText.trim()) {
-      const message =
-        'Describe the fix and how you verified recovery before saving.';
-
+      const message = 'Please enter the resolution details before saving.';
       setResolutionError(message);
       showToast('error', message);
       return;
@@ -433,21 +446,21 @@ export default function IncidentDetails({
     setResolutionError('');
 
     try {
+      const message = resolutionText.trim();
+
       await apiFetch(`/incidents/${incidentId}/activity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: resolutionText.trim(),
+          message,
           event_type: 'resolution_added',
         }),
       });
 
+      setSavedResolution(message);
       setResolutionText('');
 
-      showToast(
-        'success',
-        'Resolution details saved to the activity timeline.'
-      );
+      showToast('success', 'Resolution details saved successfully.');
 
       await fetchActivities();
     } catch (error) {
@@ -511,8 +524,6 @@ export default function IncidentDetails({
       }
 
       await fetchActivities();
-
-      // Reload the saved review so the latest critic verdict is displayed.
       await fetchReview();
     } catch (error) {
       const message = getSafeMessage(
@@ -647,12 +658,10 @@ export default function IncidentDetails({
 
   const isRootCauseApproved = review?.review_status === 'approved';
 
-  // Support either a direct review object or a nested root_cause_review object.
   const criticReview = review?.root_cause_review ?? review;
 
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6 pb-10 text-slate-800 dark:text-slate-100">
-      {/* Back navigation and incident context */}
       <button
         type="button"
         onClick={onBack}
@@ -671,7 +680,6 @@ export default function IncidentDetails({
         handleStatusChange={handleStatusChange}
       />
 
-      {/* Incident sub-navigation */}
       <nav
         aria-label="Incident sections"
         className="sticky top-0 z-20 -mx-1 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/95"
@@ -716,7 +724,6 @@ export default function IncidentDetails({
         </div>
       </nav>
 
-      {/* Active incident page */}
       <main className="min-w-0">
         {activeView === 'details' && (
           <div className="space-y-6">
@@ -731,7 +738,6 @@ export default function IncidentDetails({
               aiAnalysisStatus={aiAnalysisStatus}
             />
 
-            {/* Critic evaluates the AI hypothesis before human verification. */}
             <CriticReview review={criticReview} />
 
             <RootCauseReview
@@ -773,8 +779,6 @@ export default function IncidentDetails({
 
         {activeView === 'investigation' && (
           <div className="space-y-5">
-            
-
             <InvestigationNotes
               notes={[]}
               noteText={noteText}
@@ -796,7 +800,6 @@ export default function IncidentDetails({
 
         {activeView === 'resolution' && (
           <div className="space-y-5">
-            
             <ResolutionDetails
               resolutionText={resolutionText}
               setResolutionText={setResolutionText}
@@ -810,8 +813,6 @@ export default function IncidentDetails({
 
         {activeView === 'activity' && (
           <div className="space-y-5">
-            
-
             <ActivityTimeline
               activities={activities}
               loading={loadingActivities}
@@ -824,30 +825,13 @@ export default function IncidentDetails({
         {activeView === 'report' && (
           <div className="space-y-5">
             {isRootCauseApproved ? (
-              <>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
-                    Approved documentation
-                  </p>
-
-                  <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-                    Final incident report
-                  </h2>
-
-                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    The report is available because the root cause has been
-                    approved.
-                  </p>
-                </div>
-
-                <FinalReport
-                  report={finalReport}
-                  approved={isRootCauseApproved}
-                  loading={loadingReport}
-                  error={reportError}
-                  onRefresh={fetchFinalReport}
-                />
-              </>
+              <FinalReport
+                report={finalReport}
+                approved={isRootCauseApproved}
+                loading={loadingReport}
+                error={reportError}
+                onRefresh={fetchFinalReport}
+              />
             ) : (
               <LockedReport
                 onGoToDetails={() => setActiveView('details')}

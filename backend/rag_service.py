@@ -1,5 +1,6 @@
 
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
 from database import engine
 from models import IncidentDB
@@ -12,15 +13,14 @@ def search_similar_incidents(
     session_id: str | None = None,
     team_id: int | None = None,
     demo_workspace: bool = False,
+    user_id: str | None = None,
 ):
     """
-    Search incidents using vector similarity.
+    Search shared synthetic reference incidents and, when authenticated,
+    the current user's own incidents.
 
-    Default demo behavior searches the shared incident database,
-    including legacy incidents with NULL session_id.
-
-    Optional session_id and team_id filters are retained for
-    compatibility with older callers.
+    Private incidents belonging to other users are never included.
+    Legacy demo sessions are not treated as shared reference data.
     """
     query_embedding = create_embedding(text)
 
@@ -34,13 +34,35 @@ def search_similar_incidents(
             IncidentDB.embedding.isnot(None),
         )
 
-        if team_id is not None:
-            query = query.filter(IncidentDB.team_id == team_id)
-        elif session_id is not None and not demo_workspace:
-            query = query.filter(IncidentDB.session_id == session_id)
+        # Only explicitly marked synthetic seed records are shared.
+        shared_reference = IncidentDB.created_by == "synthetic-seed"
+
+        # Include only incidents owned by the authenticated user.
+        if user_id:
+            own_incidents = IncidentDB.created_by == user_id
+
+            query = query.filter(
+                or_(shared_reference, own_incidents)
+            )
+
+        elif team_id is not None:
+            # Team-based access is not enabled in this individual-account
+            # implementation. Do not accidentally search a whole team.
+            query = query.filter(shared_reference)
+
+        elif session_id is not None:
+            own_demo_incidents = (
+                (IncidentDB.session_id == session_id)
+                & (IncidentDB.created_by == session_id)
+            )
+
+            query = query.filter(
+                or_(shared_reference, own_demo_incidents)
+            )
+
         else:
-            # Shared demo workspace: include legacy and new incidents.
-            query = query.filter(IncidentDB.team_id.is_(None))
+            # Anonymous or unspecified callers can access seed data only.
+            query = query.filter(shared_reference)
 
         results = (
             query
@@ -66,3 +88,4 @@ def search_similar_incidents(
             })
 
         return matches
+

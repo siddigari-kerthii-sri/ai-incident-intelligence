@@ -39,7 +39,7 @@ export default function RootCauseReview({
 
   return (
     <Section
-      eyebrow="03 · Human verification"
+      eyebrow="04 · Human verification"
       title="Root-cause review"
       description="Evaluate the AI hypothesis, request further analysis, or approve the proposed explanation."
     >

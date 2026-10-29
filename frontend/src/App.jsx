@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 
 import Header from './components/Header';
@@ -10,6 +9,8 @@ import CreateIncident from './components/CreateIncident';
 import Settings from './components/Settings';
 
 import LoginPage from './pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
+import supabase from './supabaseClient';
 
 const STORAGE_KEY = 'incident-triage-settings';
 const NAV_STORAGE_KEY = 'incident_active_nav';
@@ -20,6 +21,7 @@ const VALID_PAGES = [
   'incidents',
   'create-incident',
   'settings',
+  'profile',
 ];
 
 function getSavedAppearance() {
@@ -32,21 +34,6 @@ function getSavedAppearance() {
   } catch {
     return 'light';
   }
-}
-
-function getSavedDemoToken() {
-  const token = sessionStorage.getItem('incident_demo_token');
-  const expiry = Number(
-    sessionStorage.getItem('incident_demo_expiry')
-  );
-
-  if (!token || !expiry || Date.now() >= expiry) {
-    sessionStorage.removeItem('incident_demo_token');
-    sessionStorage.removeItem('incident_demo_expiry');
-    return null;
-  }
-
-  return token;
 }
 
 function getSavedActiveNav() {
@@ -65,13 +52,71 @@ function getSavedIncidentId() {
 }
 
 function App() {
-  const [demoToken, setDemoToken] = useState(getSavedDemoToken);
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [activeNav, setActiveNav] = useState(getSavedActiveNav);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedIncidentId, setSelectedIncidentId] =
     useState(getSavedIncidentId);
 
   const [globalToast, setGlobalToast] = useState(null);
+
+  // Restore and monitor the Supabase authentication session.
+  useEffect(() => {
+    let mounted = true;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!mounted) return;
+
+      setSession(nextSession);
+      setAuthLoading(false);
+
+      if (!nextSession) {
+        setSelectedIncidentId(null);
+        setSidebarOpen(false);
+        setGlobalToast(null);
+        setActiveNav('dashboard');
+      }
+    });
+
+    async function restoreSession() {
+      try {
+        const {
+          data: { session: currentSession },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (mounted) {
+          setSession(currentSession);
+        }
+      } catch (error) {
+        console.error(
+          'Unable to restore the authentication session:',
+          error
+        );
+
+        if (mounted) {
+          setSession(null);
+        }
+      } finally {
+        if (mounted) {
+          setAuthLoading(false);
+        }
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Apply saved appearance and listen for settings changes.
   useEffect(() => {
@@ -132,42 +177,38 @@ function App() {
     return () => clearTimeout(timer);
   }, [globalToast]);
 
-  function handleDemoLogin(data) {
-    if (!data?.access_token || !data?.expires_in) {
-      console.error('The demo session response is invalid.');
-      return;
-    }
-
-    sessionStorage.setItem(
-      'incident_demo_token',
-      data.access_token
-    );
-
-    sessionStorage.setItem(
-      'incident_demo_expiry',
-      String(Date.now() + data.expires_in * 1000)
-    );
-
+  function handleLoginSuccess() {
     sessionStorage.removeItem(NAV_STORAGE_KEY);
     sessionStorage.removeItem(INCIDENT_STORAGE_KEY);
 
-    setDemoToken(data.access_token);
     setActiveNav('create-incident');
-    setSelectedIncidentId(null);
-    setGlobalToast(null);
-  }
-
-  function handleLogout() {
-    sessionStorage.removeItem('incident_demo_token');
-    sessionStorage.removeItem('incident_demo_expiry');
-    sessionStorage.removeItem(NAV_STORAGE_KEY);
-    sessionStorage.removeItem(INCIDENT_STORAGE_KEY);
-
-    setDemoToken(null);
-    setActiveNav('dashboard');
     setSelectedIncidentId(null);
     setSidebarOpen(false);
     setGlobalToast(null);
+  }
+
+  async function handleLogout() {
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) throw error;
+
+      sessionStorage.removeItem(NAV_STORAGE_KEY);
+      sessionStorage.removeItem(INCIDENT_STORAGE_KEY);
+
+      setSession(null);
+      setActiveNav('dashboard');
+      setSelectedIncidentId(null);
+      setSidebarOpen(false);
+      setGlobalToast(null);
+    } catch (error) {
+      console.error('Logout failed:', error);
+
+      setGlobalToast({
+        type: 'error',
+        message: error.message || 'Unable to log out. Please try again.',
+      });
+    }
   }
 
   function handleNavigate(id) {
@@ -206,8 +247,20 @@ function App() {
     handleIncidentCreated(incident);
   }
 
-  if (!demoToken) {
-    return <LoginPage onLogin={handleDemoLogin} />;
+  // Prevent the login page from flashing while restoring the session.
+  if (authLoading) {
+    return (
+      <div className="flex min-h-svh items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Restoring your session...
+        </p>
+      </div>
+    );
+  }
+
+  // Show login/signup when no authenticated session exists.
+  if (!session?.user) {
+    return <LoginPage onLogin={handleLoginSuccess} />;
   }
 
   return (
@@ -265,10 +318,7 @@ function App() {
         <Header
           onMenuClick={() => setSidebarOpen(true)}
           activeNav={activeNav}
-          onNavigate={handleNavigate}
-          user={null}
-          onLogout={handleLogout}
-          isDemo={true}
+          onProfileClick={() => handleNavigate('profile')}
         />
 
         <main className="flex-1 p-4 transition-colors duration-200 sm:p-6">
@@ -289,6 +339,12 @@ function App() {
             <CreateIncident onCreated={handleCreateSuccess} />
           ) : activeNav === 'settings' ? (
             <Settings />
+          ) : activeNav === 'profile' ? (
+            <ProfilePage
+              user={session.user}
+              onLogout={handleLogout}
+              onBack={() => handleNavigate('dashboard')}
+            />
           ) : (
             <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
               <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">
@@ -311,4 +367,3 @@ function App() {
 }
 
 export default App;
-

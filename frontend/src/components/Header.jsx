@@ -16,11 +16,16 @@ const PAGE_COPY = {
     title: 'Create Incident',
     subtitle: 'Report a new incident for investigation',
   },
+  profile: {
+    title: 'My Profile',
+    subtitle: 'Manage your account information',
+  },
 };
 
 export default function Header({
   onMenuClick,
   activeNav = 'dashboard',
+  onProfileClick,
 }) {
   const copy = PAGE_COPY[activeNav] ?? PAGE_COPY.dashboard;
 
@@ -68,28 +73,31 @@ export default function Header({
           </span>
         </div>
 
-        {/* Decorative profile icon — intentionally non-clickable */}
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-          title="Demo profile"
-          aria-label="Profile"
+        <button
+          type="button"
+          onClick={onProfileClick}
+          aria-label="Open profile"
+          title="My Profile"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-indigo-400 dark:hover:bg-indigo-950 dark:hover:text-indigo-300 dark:focus:ring-indigo-900"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
+            width="21"
+            height="21"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
+            aria-hidden="true"
           >
             <circle cx="12" cy="8" r="4" />
             <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
           </svg>
-        </div>
+        </button>
       </div>
     </header>
   );
 }
+

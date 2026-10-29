@@ -4,10 +4,14 @@ import supabase from './supabaseClient';
 export async function apiFetch(path, options = {}) {
   const {
     data: { session },
+    error,
   } = await supabase.auth.getSession();
 
-  const demoToken = sessionStorage.getItem('incident_demo_token');
-  const token = demoToken || session?.access_token;
+  if (error) {
+    throw new Error('Unable to verify your session. Please sign in again.');
+  }
+
+  const token = session?.access_token;
 
   if (!token) {
     throw new Error('Your session is missing. Please sign in again.');
