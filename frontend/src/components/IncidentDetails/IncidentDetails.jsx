@@ -837,21 +837,7 @@ export default function IncidentDetails({
 
         {activeView === 'activity' && (
           <div className="space-y-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
-                Audit history
-              </p>
-
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-                Activity timeline
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                Follow the incident lifecycle, including investigation notes,
-                resolution updates, status changes, and review activity
-                recorded by the system.
-              </p>
-            </div>
+            
 
             <ActivityTimeline
               activities={activities}
