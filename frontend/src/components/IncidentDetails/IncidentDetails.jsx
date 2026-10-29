@@ -773,20 +773,7 @@ export default function IncidentDetails({
 
         {activeView === 'investigation' && (
           <div className="space-y-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
-                Investigation workspace
-              </p>
-
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-                Investigation notes
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                Record findings, observations, and troubleshooting steps.
-                Saved notes appear in the activity timeline.
-              </p>
-            </div>
+            
 
             <InvestigationNotes
               notes={[]}
@@ -809,21 +796,7 @@ export default function IncidentDetails({
 
         {activeView === 'resolution' && (
           <div className="space-y-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
-                Recovery workspace
-              </p>
-
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-                Resolution
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                Document the fix and verification evidence before marking the
-                incident as resolved.
-              </p>
-            </div>
-
+            
             <ResolutionDetails
               resolutionText={resolutionText}
               setResolutionText={setResolutionText}
