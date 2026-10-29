@@ -214,11 +214,7 @@ export default function ActivityTimeline({
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.025] dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/10">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-700 sm:px-6">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-indigo-600 dark:text-indigo-400">
-            Activity history
-          </p>
-
-          <div className="mt-2 flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
               Activity timeline
             </h2>
@@ -253,6 +249,7 @@ export default function ActivityTimeline({
               <path d="M20 7v5h-5M4 17v-5h5" />
               <path d="M5.5 9A7 7 0 0 1 17 5l3 2M4 17l3 2a7 7 0 0 0 11.5-4" />
             </svg>
+
             {loading ? 'Refreshing...' : 'Refresh'}
           </button>
         )}
@@ -275,6 +272,7 @@ export default function ActivityTimeline({
               <circle cx="12" cy="12" r="9" />
               <path d="M12 8v5m0 3h.01" />
             </svg>
+
             <p className="text-sm leading-6 text-rose-700 dark:text-rose-300">
               {error}
             </p>
@@ -284,6 +282,7 @@ export default function ActivityTimeline({
         {loading && items.length === 0 ? (
           <div className="flex items-center justify-center gap-3 py-10">
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-indigo-600 dark:border-slate-700 dark:border-t-indigo-400" />
+
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Loading activity history...
             </p>
@@ -293,9 +292,11 @@ export default function ActivityTimeline({
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
               <ActivityIcon type="activity" />
             </span>
+
             <p className="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
               No activity recorded yet
             </p>
+
             <p className="mt-1 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
               Incident events will appear here as the investigation progresses.
             </p>
@@ -305,6 +306,7 @@ export default function ActivityTimeline({
             {items.map((activity, index) => {
               const style = getActivityStyle(activity);
               const isLatest = index === 0;
+
               const timestamp =
                 activity.created_at ||
                 activity.timestamp ||
@@ -371,6 +373,7 @@ export default function ActivityTimeline({
                           d="M12 7v5l3 2"
                         />
                       </svg>
+
                       <time dateTime={timestamp || undefined}>
                         {formatDate(timestamp)}
                       </time>
