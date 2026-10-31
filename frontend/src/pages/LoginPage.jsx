@@ -6,6 +6,7 @@ function LoginPage({ onLogin }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -80,10 +81,7 @@ function LoginPage({ onLogin }) {
         setError(
           'This email already has an account. Switch to Log in instead.'
         );
-      } else if (
-        /password/i.test(authError) &&
-        mode === 'signup'
-      ) {
+      } else if (/password/i.test(authError) && mode === 'signup') {
         setError(
           'Please choose a stronger password. Use at least 8 characters.'
         );
@@ -103,6 +101,7 @@ function LoginPage({ onLogin }) {
     setMode(nextMode);
     setError('');
     setMessage('');
+    setShowPassword(false);
   }
 
   return (
@@ -222,24 +221,70 @@ function LoginPage({ onLogin }) {
                 Password
               </label>
 
-              <input
-                id="auth-password"
-                type="password"
-                autoComplete={
-                  mode === 'login' ? 'current-password' : 'new-password'
-                }
-                required
-                minLength={8}
-                maxLength={128}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder={
-                  mode === 'signup'
-                    ? 'At least 8 characters'
-                    : 'Enter your password'
-                }
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-              />
+              <div className="relative">
+                <input
+                  id="auth-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={
+                    mode === 'login' ? 'current-password' : 'new-password'
+                  }
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={
+                    mode === 'signup'
+                      ? 'At least 8 characters'
+                      : 'Enter your password'
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((previous) => !previous)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 transition hover:text-indigo-600 focus:outline-none focus:text-indigo-600"
+                >
+                  {showPassword ? (
+                    // Eye-off icon
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-5 w-5"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 3l18 18" />
+                      <path d="M10.6 10.6a2 2 0 002.8 2.8" />
+                      <path d="M9.9 5.2A10.8 10.8 0 0112 5c5 0 8.5 4.5 9.5 7-.4 1-1.2 2.2-2.4 3.3" />
+                      <path d="M6.2 6.2C3.9 7.6 2.6 9.5 2.5 12c1 2.5 4.5 7 9.5 7 1.4 0 2.7-.3 3.8-.9" />
+                    </svg>
+                  ) : (
+                    // Eye icon
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-5 w-5"
+                      aria-hidden="true"
+                    >
+                      <path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
 
               {mode === 'signup' && (
                 <p className="mt-2 text-xs text-slate-400">
