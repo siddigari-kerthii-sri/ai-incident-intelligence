@@ -21,6 +21,7 @@ An AI-powered incident management platform that analyzes technical incidents, id
 - **Backend:** Python, FastAPI, Pydantic
 - **Database:** Supabase PostgreSQL, SQLAlchemy
 - **AI/LLM:** Groq API
+- **Retrieval-Augmented Generation (RAG)
 - **Embeddings & Vector Search:** Sentence Transformers, pgvector
 - **Authentication:** Supabase Auth
 - **Deployment:** Vercel, Render
