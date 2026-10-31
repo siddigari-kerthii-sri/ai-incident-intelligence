@@ -1,8 +1,7 @@
-
-
 import { useCallback, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../api';
+import supabase from '../../supabaseClient';
 
 import IncidentHeader from './IncidentHeader';
 import IncidentOverview from './IncidentOverview';
@@ -213,7 +212,6 @@ export default function IncidentDetails({
 
       setActivities(safeItems);
 
-      // Restore the latest saved resolution from the persisted timeline.
       const resolutionActivity = [...safeItems]
         .filter(
           (item) =>
@@ -251,7 +249,11 @@ export default function IncidentDetails({
 
     try {
       const data = await apiFetch(`/incidents/${incidentId}/final-report`);
-      setFinalReport(data?.final_report ?? data?.report ?? data);
+
+      setFinalReport({
+        ...data,
+        report: data?.report ?? data?.final_report ?? '',
+      });
     } catch (error) {
       setFinalReport(null);
 
@@ -307,6 +309,7 @@ export default function IncidentDetails({
     }
   }, [incidentId, fetchFinalReport]);
 
+  // Initial loading when the selected incident changes.
   useEffect(() => {
     setActiveView('details');
     setReview(null);
@@ -327,11 +330,182 @@ export default function IncidentDetails({
     fetchReview();
   }, [incidentId, fetchActivities, fetchReview]);
 
+  // Supabase Realtime subscription.
+  useEffect(() => {
+    if (!incidentId) return undefined;
+
+    let channel = null;
+    let isActive = true;
+
+    async function subscribeToChanges() {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (!isActive || !session?.user?.id) return;
+
+        const currentUserId = session.user.id;
+
+        channel = supabase
+          .channel(`incident-${incidentId}-${currentUserId}`)
+
+          // Activity notes and resolution updates.
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'incident_activities',
+              filter: `incident_id=eq.${incidentId}`,
+            },
+            (payload) => {
+              if (!isActive) return;
+
+              const record = payload.new || payload.old;
+
+              if (
+                record?.session_id &&
+                record.session_id !== currentUserId
+              ) {
+                return;
+              }
+
+              fetchActivities();
+
+              // Only resolution changes affect the final report.
+              if (
+                record?.event_type === 'resolution_added' &&
+                review?.review_status === 'approved'
+              ) {
+                fetchFinalReport();
+              }
+            }
+          )
+
+          // User-specific status changes.
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'session_incident_status',
+              filter: `incident_id=eq.${incidentId}`,
+            },
+            (payload) => {
+              if (!isActive) return;
+
+              const record = payload.new || payload.old;
+
+              if (
+                record?.session_id &&
+                record.session_id !== currentUserId
+              ) {
+                return;
+              }
+
+              if (
+                typeof payload.new?.status === 'string' &&
+                STATUS_OPTIONS.includes(payload.new.status)
+              ) {
+                setStatus(payload.new.status);
+                onStatusUpdated?.(payload.new.status);
+              }
+
+              fetchActivities();
+
+              if (review?.review_status === 'approved') {
+                fetchFinalReport();
+              }
+            }
+          )
+
+          // Root-cause review changes.
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'session_incident_reviews',
+              filter: `incident_id=eq.${incidentId}`,
+            },
+            (payload) => {
+              if (!isActive) return;
+
+              const record = payload.new || payload.old;
+
+              if (
+                record?.session_id &&
+                record.session_id !== currentUserId
+              ) {
+                return;
+              }
+
+              fetchReview();
+            }
+          )
+
+          // Main incident record changes.
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'incidents',
+              filter: `id=eq.${incidentId}`,
+            },
+            () => {
+              if (!isActive) return;
+
+              fetchActivities();
+
+              if (review?.review_status === 'approved') {
+                fetchFinalReport();
+              }
+            }
+          )
+          .subscribe((subscriptionStatus) => {
+            if (subscriptionStatus === 'SUBSCRIBED') {
+              console.log(
+                `Realtime connected for incident ${incidentId}`
+              );
+            }
+
+            if (subscriptionStatus === 'CHANNEL_ERROR') {
+              console.error(
+                `Realtime channel error for incident ${incidentId}`
+              );
+            }
+          });
+      } catch (error) {
+        console.error('Realtime subscription error:', error);
+      }
+    }
+
+    subscribeToChanges();
+
+    return () => {
+      isActive = false;
+
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [
+    incidentId,
+    review?.review_status,
+    fetchActivities,
+    fetchFinalReport,
+    fetchReview,
+    onStatusUpdated,
+  ]);
+
   async function handleStatusChange(newStatus) {
     if (newStatus === status || savingStatus) return;
 
-    // The backend remains the source of truth for saved resolution validation.
-    // This avoids blocking resolution because the editor was cleared after saving.
     const previousStatus = status;
 
     setStatus(newStatus);
@@ -373,7 +547,12 @@ export default function IncidentDetails({
       onStatusUpdated?.(savedStatus);
 
       showToast('success', 'Incident status updated successfully.');
+
       await fetchActivities();
+
+      if (review?.review_status === 'approved') {
+        await fetchFinalReport();
+      }
     } catch (error) {
       setStatus(previousStatus);
 
@@ -413,6 +592,7 @@ export default function IncidentDetails({
       });
 
       setNoteText('');
+
       showToast(
         'success',
         'Investigation note saved to the activity timeline.'
@@ -463,6 +643,10 @@ export default function IncidentDetails({
       showToast('success', 'Resolution details saved successfully.');
 
       await fetchActivities();
+
+      if (review?.review_status === 'approved') {
+        await fetchFinalReport();
+      }
     } catch (error) {
       const message = getSafeMessage(
         error?.message ?? error,

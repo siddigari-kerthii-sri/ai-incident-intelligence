@@ -1,55 +1,22 @@
 
 function Section({ eyebrow, title, description, children }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.025] dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/10">
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="border-b border-slate-100 px-5 py-5 dark:border-slate-700 sm:px-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-indigo-600 dark:text-indigo-400">
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">
           {eyebrow}
         </p>
-
-        <h2 className="mt-2 text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
+        <h2 className="mt-1.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white">
           {title}
         </h2>
-
         {description && (
-          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {description}
           </p>
         )}
       </div>
-
       <div className="p-5 sm:p-6">{children}</div>
     </section>
-  );
-}
-
-function ReportField({ label, value }) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === "" ||
-    (Array.isArray(value) && value.length === 0)
-  ) {
-    return null;
-  }
-
-  const displayValue =
-    typeof value === "string"
-      ? value
-      : typeof value === "object"
-        ? JSON.stringify(value, null, 2)
-        : String(value);
-
-  return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-        {label}
-      </h3>
-
-      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-slate-700 dark:text-slate-300">
-        {displayValue}
-      </p>
-    </div>
   );
 }
 
@@ -68,38 +35,162 @@ function formatDate(value) {
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
-  }
-
-  return date.toLocaleString();
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleString();
 }
 
 function getStatusLabel(status) {
   if (!status) return null;
 
-  const normalized = String(status).toLowerCase().replace(/[_-]/g, " ");
+  const value = String(status).toLowerCase().replace(/[_-]/g, " ");
 
-  if (normalized.includes("resolved")) return "Resolved";
-  if (normalized.includes("investigat")) return "Investigating";
-  if (normalized.includes("open")) return "Open";
-  if (normalized.includes("closed")) return "Closed";
+  if (value.includes("resolved")) return "Resolved";
+  if (value.includes("investigat")) return "Investigating";
+  if (value.includes("closed")) return "Closed";
+  if (value.includes("open")) return "Open";
 
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function getStatusStyle(status) {
-  const normalized = String(status || "").toLowerCase();
+function parseReportText(text) {
+  if (typeof text !== "string" || !text.trim()) return {};
 
-  if (normalized.includes("resolved") || normalized.includes("closed")) {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/50 dark:text-emerald-300";
-  }
+  const labels = [
+    ["description", /^Description:\s*/i],
+    ["summary", /^AI Summary:\s*/i],
+    ["rootCause", /^Human-approved root cause:\s*/i],
+    ["recommendedActions", /^Recommended action:\s*/i],
+    ["reviewFeedback", /^Review feedback:\s*/i],
+    ["reviewStatus", /^Review status:\s*/i],
+    ["resolution", /^Resolution:\s*/i],
+    ["verification", /^Verification:\s*/i],
+    ["service", /^Service:\s*/i],
+    ["severity", /^Severity:\s*/i],
+  ];
 
-  if (normalized.includes("investigat")) {
-    return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/50 dark:text-amber-300";
-  }
+  const result = {};
+  let currentKey = null;
 
-  return "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300";
+  text.split(/\r?\n/).forEach((line) => {
+    const match = labels.find(([, regex]) => regex.test(line.trim()));
+
+    if (match) {
+      currentKey = match[0];
+      result[currentKey] = line.trim().replace(match[1], "").trim();
+      return;
+    }
+
+    if (currentKey) {
+      result[currentKey] +=
+        (result[currentKey] ? "\n" : "") + line.trim();
+    }
+  });
+
+  Object.keys(result).forEach((key) => {
+    result[key] = result[key].trim();
+  });
+
+  return result;
+}
+
+function MetaItem({ label, value }) {
+  if (!value) return null;
+
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
+      <p className="mt-1.5 truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ContentCard({ label, children, icon }) {
+  if (!children) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+      <div className="mb-3 flex items-center gap-2.5">
+        {icon && (
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-sm text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+            {icon}
+          </span>
+        )}
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+          {label}
+        </h3>
+      </div>
+
+      <div className="whitespace-pre-line text-sm leading-7 text-slate-600 dark:text-slate-300">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ActionList({ actions }) {
+  if (!actions) return null;
+
+  const items = Array.isArray(actions)
+    ? actions
+    : typeof actions === "string"
+      ? actions
+          .split(/\n/)
+          .map((item) =>
+            item.replace(/^\s*(?:\d+[\.\)]|[-*])\s*/, "").trim()
+          )
+          .filter(Boolean)
+      : [String(actions)];
+
+  if (!items.length) return null;
+
+  return (
+    <div className="space-y-4">
+      {items.map((item, index) => (
+        <div key={index} className="flex items-start gap-3">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-[11px] font-bold text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+
+          <p className="pt-0.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            {typeof item === "object"
+              ? item.title || item.description || JSON.stringify(item)
+              : item}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StateCard({ title, value, pendingText, complete }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+          {title}
+        </h3>
+
+        <span
+          className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+            complete
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+              : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          }`}
+        >
+          {complete ? "Documented" : "Pending"}
+        </span>
+      </div>
+
+      <p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-600 dark:text-slate-300">
+        {value || pendingText}
+      </p>
+    </div>
+  );
 }
 
 export default function FinalReport({
@@ -109,17 +200,10 @@ export default function FinalReport({
   error = "",
   onRefresh,
 }) {
-  const hasReport =
-    report !== null &&
-    report !== undefined &&
-    (typeof report === "string"
-      ? report.trim().length > 0
-      : typeof report === "object" && Object.keys(report).length > 0);
-
   const reportData =
     typeof report === "object" && report !== null ? report : {};
 
-  const reportText =
+  const rawReport =
     typeof report === "string"
       ? report
       : getFirstValue(
@@ -129,13 +213,68 @@ export default function FinalReport({
           reportData.report_content
         );
 
-  const updatedAt = getFirstValue(
-    reportData.updated_at,
-    reportData.last_updated,
-    reportData.modified_at
+  const parsed = parseReportText(rawReport);
+
+  const hasReport =
+    (typeof report === "string" && report.trim().length > 0) ||
+    (typeof report === "object" &&
+      report !== null &&
+      Object.keys(report).length > 0);
+
+  const service = getFirstValue(reportData.service, parsed.service);
+  const severity = getFirstValue(reportData.severity, parsed.severity);
+
+  // Use the AI summary only. Do not append the original description.
+  const summary = getFirstValue(
+    reportData.summary,
+    reportData.incident_summary,
+    reportData.ai_summary,
+    parsed.summary
   );
 
-  // Prefer the latest incident state supplied by the report API.
+  const rootCause = getFirstValue(
+    reportData.approved_root_cause,
+    reportData.human_approved_root_cause,
+    reportData.root_cause,
+    parsed.rootCause
+  );
+
+  const recommendedActions = getFirstValue(
+    reportData.recommended_actions,
+    reportData.recommended_action,
+    reportData.recommendations,
+    parsed.recommendedActions
+  );
+
+  const resolution = getFirstValue(
+    reportData.resolution_summary,
+    reportData.resolution_notes,
+    reportData.resolution_details,
+    reportData.resolution,
+    parsed.resolution
+  );
+
+  const verification = getFirstValue(
+    reportData.verification_summary,
+    reportData.verification_evidence,
+    reportData.verification,
+    reportData.validation_results,
+    parsed.verification
+  );
+
+  const reviewFeedback = getFirstValue(
+    reportData.review_feedback,
+    reportData.reviewer_feedback,
+    reportData.feedback,
+    parsed.reviewFeedback
+  );
+
+  const reviewStatus = getFirstValue(
+    reportData.review_status,
+    reportData.approval_status,
+    parsed.reviewStatus
+  );
+
   const status = getStatusLabel(
     getFirstValue(
       reportData.status,
@@ -144,88 +283,43 @@ export default function FinalReport({
     )
   );
 
-  const title = getFirstValue(
-    reportData.title,
-    reportData.incident_title,
-    reportData.incident_name
-  );
-
-  const incidentId = getFirstValue(
-    reportData.incident_id,
-    reportData.id
-  );
-
-  const service = reportData.service;
-  const severity = reportData.severity;
-
-  const summary = getFirstValue(
-    reportData.summary,
-    reportData.incident_summary,
-    reportData.ai_summary
-  );
-
-  const rootCause = getFirstValue(
-    reportData.approved_root_cause,
-    reportData.human_approved_root_cause,
-    reportData.root_cause,
-    reportData.possible_root_cause
-  );
-
-  const resolution = getFirstValue(
-    reportData.resolution_summary,
-    reportData.resolution_notes,
-    reportData.resolution_details,
-    reportData.resolution
-  );
-
-  const verification = getFirstValue(
-    reportData.verification_summary,
-    reportData.verification_evidence,
-    reportData.verification
-  );
-
   const isResolved =
     status?.toLowerCase() === "resolved" ||
     status?.toLowerCase() === "closed";
+
+  const updatedAt = getFirstValue(
+    reportData.updated_at,
+    reportData.last_updated,
+    reportData.modified_at
+  );
+
+  const hasResolution = Boolean(resolution);
+  const hasVerification = Boolean(verification);
 
   return (
     <Section
       eyebrow="04 · Documentation"
       title="Final incident report"
-      description="A concise summary of the approved incident analysis and its latest resolution state."
+      description="A clear record of the approved analysis, remediation, and verification."
     >
       {loading ? (
-        <div
-          className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800/60"
-          role="status"
-        >
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Loading latest report…
+        <div className="rounded-xl bg-slate-50 p-8 text-center dark:bg-slate-800">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Loading latest report...
           </p>
         </div>
       ) : !approved ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6 dark:border-amber-900/60 dark:bg-amber-950/30 sm:p-8">
-          <div className="mx-auto flex max-w-md flex-col items-center text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-200 bg-white text-xl text-amber-700 dark:border-amber-800 dark:bg-slate-900 dark:text-amber-400">
-              ◈
-            </span>
-
-            <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-slate-100">
-              Report awaiting approval
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Approve the incident analysis to make the initial report
-              available. The resolution can be added later.
-            </p>
-          </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-900 dark:bg-amber-950/30">
+          <h3 className="font-bold text-amber-800 dark:text-amber-300">
+            Report awaiting approval
+          </h3>
+          <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+            Approve the root-cause analysis to generate the initial report.
+          </p>
         </div>
       ) : error ? (
-        <div
-          className="rounded-xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/60 dark:bg-rose-950/40"
-          role="alert"
-        >
-          <p className="text-sm leading-6 text-rose-700 dark:text-rose-300">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/30">
+          <p className="text-sm text-rose-700 dark:text-rose-300">
             {error}
           </p>
 
@@ -233,112 +327,135 @@ export default function FinalReport({
             <button
               type="button"
               onClick={onRefresh}
-              disabled={loading}
-              className="mt-3 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300"
+              className="mt-3 text-sm font-semibold text-rose-700 underline dark:text-rose-300"
             >
-              Retry loading report
+              Retry
             </button>
           )}
         </div>
       ) : hasReport ? (
-        <div>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <span
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${getStatusStyle(
-                status
-              )}`}
-            >
-              {status || "Approved"}
-            </span>
+        <div className="space-y-5">
+
+          {/* Compact report metadata */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60 sm:p-6">
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+              <MetaItem label="Service" value={service} />
+              <MetaItem label="Severity" value={severity} />
+              <MetaItem
+                label="Last updated"
+                value={formatDate(updatedAt) || "Not available"}
+              />
+            </div>
+          </div>
+
+          {/* Executive summary */}
+          {summary && (
+            <ContentCard label="Executive summary" icon="◈">
+              {summary}
+            </ContentCard>
+          )}
+
+          {/* Approved root cause */}
+          {rootCause && (
+            <ContentCard label="Approved root cause" icon="⌕">
+              {rootCause}
+            </ContentCard>
+          )}
+
+          {/* Recommended actions */}
+          {recommendedActions && (
+            <ContentCard label="Recommended actions" icon="↗">
+              <ActionList actions={recommendedActions} />
+            </ContentCard>
+          )}
+
+          {/* Resolution and verification */}
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-600 dark:text-indigo-400">
+                Remediation
+              </p>
+              <h3 className="mt-1 text-base font-bold text-slate-900 dark:text-white">
+                Resolution & verification
+              </h3>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Documented actions and evidence of service recovery.
+              </p>
+            </div>
+
+            <StateCard
+              title="Resolution"
+              value={resolution}
+              complete={hasResolution}
+              pendingText={
+                isResolved
+                  ? "The incident is marked resolved, but no resolution details have been documented."
+                  : "No resolution details have been documented yet."
+              }
+            />
+
+            <StateCard
+              title="Verification"
+              value={verification}
+              complete={hasVerification}
+              pendingText="Verification evidence has not yet been recorded. Confirm successful end-to-end operation before considering the incident fully verified."
+            />
+          </div>
+
+          {/* Human review */}
+          {(reviewFeedback || reviewStatus) && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+              <div>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  Human review
+                </p>
+
+                {reviewFeedback && (
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    {reviewFeedback}
+                  </p>
+                )}
+              </div>
+
+              {reviewStatus && (
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  {getStatusLabel(reviewStatus)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
+            <p className="text-xs text-slate-400">
+              {hasResolution
+                ? "Report includes the latest documented resolution."
+                : "Report updates as investigation and resolution details are documented."}
+            </p>
 
             {onRefresh && (
               <button
                 type="button"
                 onClick={onRefresh}
                 disabled={loading}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
               >
                 ↻ Refresh report
               </button>
             )}
           </div>
-
-          {updatedAt && (
-            <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-              Last updated: {formatDate(updatedAt)}
-            </p>
-          )}
-
-          {reportText ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-950/60 sm:p-5">
-              <ReportField label="Report" value={reportText} />
-            </div>
-          ) : (
-            <div className="space-y-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-950/60 sm:p-5">
-              {(title || incidentId) && (
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                    {title || `Incident #${incidentId}`}
-                  </h3>
-
-                  {incidentId && title && (
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      Incident #{incidentId}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <ReportField label="Service" value={service} />
-                <ReportField label="Severity" value={severity} />
-              </div>
-
-              <ReportField label="Summary" value={summary} />
-
-              <ReportField
-                label="Root Cause"
-                value={rootCause || "Not available yet."}
-              />
-
-              <ReportField
-                label="Resolution"
-                value={
-                  resolution ||
-                  (isResolved
-                    ? "The incident is marked resolved, but no resolution summary was returned."
-                    : "Pending investigation and verification.")
-                }
-              />
-
-              {isResolved && verification && (
-                <ReportField
-                  label="Verification"
-                  value={verification}
-                />
-              )}
-            </div>
-          )}
-
-          <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">
-            {isResolved
-              ? "This report reflects the resolved incident state and the resolution information returned by the server."
-              : "This report is available after root-cause approval and can be updated as the incident progresses. Approval does not by itself mean the incident is resolved."}
-          </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-          <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-            The analysis has been approved, but no report content was
-            returned. Check the report API response.
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            The analysis was approved, but the report API returned no content.
           </p>
 
           {onRefresh && (
             <button
               type="button"
               onClick={onRefresh}
-              disabled={loading}
-              className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="mt-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400"
             >
               Load report
             </button>

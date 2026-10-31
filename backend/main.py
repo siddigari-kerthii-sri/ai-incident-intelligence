@@ -1344,10 +1344,96 @@ def get_final_report(
                 ),
             )
 
+        # Fetch the latest saved resolution for this user and incident.
+        resolution = get_resolution(
+            db, incident_id, session_id
+        )
+
+        # Fetch the latest activity to determine when the report changed.
+        latest_activity = (
+            db.query(IncidentActivity)
+            .filter(
+                IncidentActivity.incident_id == incident_id,
+                IncidentActivity.session_id == session_id,
+            )
+            .order_by(
+                IncidentActivity.created_at.desc(),
+                IncidentActivity.id.desc(),
+            )
+            .first()
+        )
+
+        # Get the latest user-specific incident status.
+        current_status = get_incident_status(
+            db, incident_id, session_id
+        )
+
+        # Get the approved analysis.
+        analysis = current_session_analysis(review, incident)
+
+        resolution_message = (
+            resolution.message if resolution else None
+        )
+
+        resolution_timestamp = (
+            format_created_at(resolution.created_at)
+            if resolution else None
+        )
+
+        last_updated = (
+            format_created_at(latest_activity.created_at)
+            if latest_activity
+            else format_created_at(review.reviewed_at)
+        )
+
+        # Keep the original approved report and append the latest
+        # resolution dynamically, without modifying the stored snapshot.
+        dynamic_report = review.final_report
+
+        if resolution_message:
+            dynamic_report += (
+                "\n\nResolution:\n"
+                f"{resolution_message}"
+            )
+
         return {
             "incident_id": incident.id,
             "title": incident.title,
+            "description": incident.description,
+
+            "service": analysis.get("service"),
+            "severity": analysis.get("severity"),
+            "summary": analysis.get("summary"),
+
+            "approved_root_cause": (
+                review.revised_root_cause
+                or analysis.get("possible_root_cause")
+            ),
+
+            "recommended_action": analysis.get(
+                "recommended_action"
+            ),
+
+            "review_feedback": review.feedback,
             "review_status": review.review_status,
-            "final_report": review.final_report,
-            "reviewed_at": format_created_at(review.reviewed_at),
+            "reviewed_at": format_created_at(
+                review.reviewed_at
+            ),
+
+            "status": current_status,
+
+            "resolution": resolution_message,
+            "resolution_details": resolution_message,
+            "resolved_at": resolution_timestamp,
+
+            "resolution_status": (
+                "Documented" if resolution_message else "Pending"
+            ),
+
+            "verification_status": "Not documented",
+
+            "last_updated": last_updated,
+
+            "report": dynamic_report,
+            "final_report": dynamic_report,
         }
