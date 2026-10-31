@@ -1,4 +1,5 @@
 
+
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -14,11 +15,13 @@ def search_similar_incidents(
     team_id: int | None = None,
     demo_workspace: bool = False,
     user_id: str | None = None,
+    current_incident_id: int | None = None,
 ):
     """
     Search shared synthetic reference incidents and, when authenticated,
     the current user's own incidents.
 
+    The incident currently being analysed is always excluded.
     Private incidents belonging to other users are never included.
     Legacy demo sessions are not treated as shared reference data.
     """
@@ -34,6 +37,12 @@ def search_similar_incidents(
             IncidentDB.embedding.isnot(None),
         )
 
+        # Never retrieve the incident currently being analysed.
+        if current_incident_id is not None:
+            query = query.filter(
+                IncidentDB.id != current_incident_id
+            )
+
         # Only explicitly marked synthetic seed records are shared.
         shared_reference = IncidentDB.created_by == "synthetic-seed"
 
@@ -46,8 +55,7 @@ def search_similar_incidents(
             )
 
         elif team_id is not None:
-            # Team-based access is not enabled in this individual-account
-            # implementation. Do not accidentally search a whole team.
+            # Team-based access is not enabled in this implementation.
             query = query.filter(shared_reference)
 
         elif session_id is not None:
@@ -61,7 +69,7 @@ def search_similar_incidents(
             )
 
         else:
-            # Anonymous or unspecified callers can access seed data only.
+            # Anonymous callers can access seed data only.
             query = query.filter(shared_reference)
 
         results = (
@@ -88,4 +96,3 @@ def search_similar_incidents(
             })
 
         return matches
-

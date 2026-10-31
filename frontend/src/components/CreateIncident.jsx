@@ -107,19 +107,15 @@ const DEMO_INCIDENTS = [
 
 const ROTATION_KEY = 'incident_demo_example_index';
 
-function getNextExampleIndex(currentIndex) {
-  return (currentIndex + 1) % DEMO_INCIDENTS.length;
-}
-
 function getInitialIndex() {
   try {
-    const saved = Number(
-      sessionStorage.getItem(ROTATION_KEY)
-    );
+    const saved = Number(sessionStorage.getItem(ROTATION_KEY));
 
-    return Number.isInteger(saved) &&
+    return (
+      Number.isInteger(saved) &&
       saved >= 0 &&
       saved < DEMO_INCIDENTS.length
+    )
       ? saved
       : 0;
   } catch {
@@ -127,11 +123,19 @@ function getInitialIndex() {
   }
 }
 
+function getNextExampleIndex(currentIndex) {
+  return (currentIndex + 1) % DEMO_INCIDENTS.length;
+}
+
 export default function CreateIncident({ onCreated }) {
   const [exampleIndex, setExampleIndex] = useState(getInitialIndex);
-  const [form, setForm] = useState(() => ({
-    ...DEMO_INCIDENTS[getInitialIndex()],
-  }));
+
+  // Start with an empty form.
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+  });
+
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -144,20 +148,22 @@ export default function CreateIncident({ onCreated }) {
     }));
   }
 
-  function selectExample(index) {
-    setExampleIndex(index);
-    setForm({ ...DEMO_INCIDENTS[index] });
+  function tryExample() {
+    if (loading) return;
+
+    // Fill the form with the current example.
+    setForm({ ...DEMO_INCIDENTS[exampleIndex] });
     setToast(null);
 
+    // Advance the index for the next click.
+    const nextIndex = getNextExampleIndex(exampleIndex);
+    setExampleIndex(nextIndex);
+
     try {
-      sessionStorage.setItem(ROTATION_KEY, String(index));
+      sessionStorage.setItem(ROTATION_KEY, String(nextIndex));
     } catch {
       // The form still works if session storage is unavailable.
     }
-  }
-
-  function resetForm() {
-    selectExample(getNextExampleIndex(exampleIndex));
   }
 
   async function handleSubmit(event) {
@@ -198,17 +204,7 @@ export default function CreateIncident({ onCreated }) {
         );
       }
 
-      const nextIndex = getNextExampleIndex(exampleIndex);
-
-      try {
-        sessionStorage.setItem(ROTATION_KEY, String(nextIndex));
-      } catch {
-        // Successful incident creation must not depend on storage.
-      }
-
-      // Keep the current example visible until the existing
-      // success-navigation flow takes over.
-      setExampleIndex(nextIndex);
+      // Only the submit action creates an incident.
       onCreated?.(incident);
     } catch (error) {
       console.error('Create incident error:', error);
@@ -269,19 +265,19 @@ export default function CreateIncident({ onCreated }) {
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
               Incident Information
             </h3>
+
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Example {exampleIndex + 1} of {DEMO_INCIDENTS.length}
-              {' · '}Edit the details before submitting.
+              Describe an incident or try a sample to get started.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={resetForm}
+            onClick={tryExample}
             disabled={loading}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 disabled:opacity-50 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-300 dark:hover:bg-sky-400/20"
           >
-            Next example ↻
+            ✨ Try an example
           </button>
         </div>
 
@@ -417,4 +413,3 @@ export default function CreateIncident({ onCreated }) {
     </section>
   );
 }
-

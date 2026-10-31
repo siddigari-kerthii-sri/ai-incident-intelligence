@@ -394,12 +394,7 @@ export default function FinalReport({
               }
             />
 
-            <StateCard
-              title="Verification"
-              value={verification}
-              complete={hasVerification}
-              pendingText="Verification evidence has not yet been recorded. Confirm successful end-to-end operation before considering the incident fully verified."
-            />
+            
           </div>
 
           {/* Human review */}
