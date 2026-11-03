@@ -5,3 +5,4 @@ pgvector
 psycopg2-binary
 python-dotenv
 groq
+sentence-transformers
