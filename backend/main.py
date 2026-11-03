@@ -1,5 +1,3 @@
-
-
 import os
 import re
 import json
@@ -24,7 +22,10 @@ from models import (
     IncidentActivity,
     SessionIncidentReview,
 )
-from embedding_service import create_embedding
+from embedding_service import (
+    create_embedding,
+    prepare_incident_text,
+)
 from rag_service import search_similar_incidents
 
 
@@ -590,8 +591,14 @@ def create_incident(
     request: IncidentRequest,
     session_id: str = Depends(require_authenticated_user),
 ):
-    incident_text = f"{request.title}. {request.description}"
+    # Create the search query from the information available
+    # before AI analysis.
+    incident_text = "\n".join([
+        f"Title: {request.title}",
+        f"Description: {request.description}",
+    ])
 
+    # Retrieve similar historical incidents.
     try:
         similar = get_similar_incidents(
             incident_text,
@@ -602,12 +609,7 @@ def create_incident(
         print(f"Similar-incident search failed: {exc}")
         similar = []
 
-    try:
-        embedding = create_embedding(incident_text)
-    except Exception as exc:
-        print(f"Embedding creation failed: {exc}")
-        embedding = None
-
+    # Generate AI incident analysis.
     try:
         ai = analyze_incident(
             request.title,
@@ -620,6 +622,7 @@ def create_incident(
 
     ai_status = "Completed" if ai else "Unavailable"
 
+    # Generate critic review.
     critic = None
 
     if ai:
@@ -633,6 +636,7 @@ def create_incident(
         except Exception as exc:
             print(f"Incident AI critic failed: {exc}")
 
+    # Fallback when AI analysis is unavailable.
     if not ai:
         ai = {
             "service": "Unknown",
@@ -646,6 +650,7 @@ def create_incident(
             "confidence": None,
         }
 
+    # Save the incident and generate its enriched embedding.
     with Session(bind=engine) as db:
         incident = IncidentDB(
             session_id=session_id,
@@ -660,15 +665,30 @@ def create_incident(
             possible_root_cause=ai.get("possible_root_cause"),
             recommended_action=ai.get("recommended_action"),
             confidence=ai.get("confidence"),
-            embedding=embedding,
+            embedding=None,
             status="Open",
             ai_analysis_status=ai_status,
         )
 
+        # Generate the stored embedding using the completed
+        # incident details and Sentence Transformers.
+        try:
+            incident.embedding = create_embedding(
+                prepare_incident_text(incident)
+            )
+        except Exception as exc:
+            print(f"Embedding creation failed: {exc}")
+            incident.embedding = None
+
         db.add(incident)
         db.flush()
 
-        ensure_session_status(db, incident.id, session_id, "Open")
+        ensure_session_status(
+            db,
+            incident.id,
+            session_id,
+            "Open",
+        )
 
         review = SessionIncidentReview(
             session_id=session_id,
@@ -709,8 +729,6 @@ def create_incident(
             ),
             "incident": response,
         }
-
-
 # --------------------------------------------------
 # LIST THE AUTHENTICATED USER'S INCIDENTS
 # --------------------------------------------------

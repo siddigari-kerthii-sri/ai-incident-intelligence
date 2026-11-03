@@ -1,22 +1,28 @@
 
-import re
-import hashlib
-import math
+from sentence_transformers import SentenceTransformer
 
 DIMENSIONS = 384
 
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+
+def prepare_incident_text(incident) -> str:
+    fields = [
+        f"Title: {incident.title or ''}",
+        f"Description: {incident.description or ''}",
+        f"Service: {incident.service or ''}",
+        f"Severity: {incident.severity or ''}",
+        f"Category: {incident.category or ''}",
+        f"Summary: {incident.summary or ''}",
+    ]
+
+    return "\n".join(fields)
+
+
 def create_embedding(text: str) -> list[float]:
-    vector = [0.0] * DIMENSIONS
-    words = re.findall(r"\b[a-z0-9_]+\b", text.lower())
+    embedding = model.encode(
+        text,
+        normalize_embeddings=True
+    )
 
-    for word in words:
-        digest = hashlib.sha256(word.encode("utf-8")).digest()
-        index = int.from_bytes(digest[:4], "big") % DIMENSIONS
-        vector[index] += 1.0
-
-    magnitude = math.sqrt(sum(x * x for x in vector))
-
-    if magnitude:
-        vector = [x / magnitude for x in vector]
-
-    return vector
+    return embedding.tolist()

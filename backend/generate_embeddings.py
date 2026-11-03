@@ -1,8 +1,9 @@
+
 from sqlalchemy.orm import Session
 
 from database import engine
 from models import IncidentDB
-from embedding_service import create_embedding
+from embedding_service import create_embedding, prepare_incident_text
 
 
 db = Session(bind=engine)
@@ -10,8 +11,10 @@ db = Session(bind=engine)
 try:
     incidents = db.query(IncidentDB).all()
 
+    print(f"Found {len(incidents)} incidents")
+
     for incident in incidents:
-        text = f"{incident.title}. {incident.description}"
+        text = prepare_incident_text(incident)
 
         incident.embedding = create_embedding(text)
 
@@ -19,7 +22,11 @@ try:
 
     db.commit()
 
-    print("All incident embeddings generated successfully.")
+    print("All incident embeddings regenerated successfully.")
+
+except Exception:
+    db.rollback()
+    raise
 
 finally:
     db.close()
