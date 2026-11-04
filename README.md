@@ -4,7 +4,7 @@
 
 ## Application Preview
 
-![AI Incident Intelligence Dashboard](ai-triage.png)
+![AI Incident Intelligence Dashboard](ai-triage.PNG)
 
 An AI-powered incident investigation platform that helps users analyze technical incidents, retrieve relevant historical cases, investigate possible root causes, and generate actionable reports.
 
