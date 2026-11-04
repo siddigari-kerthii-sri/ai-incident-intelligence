@@ -2,6 +2,10 @@
 
 **Live Demo:** (https://ai-incident-intelligence-khaki.vercel.app/)
 
+## Application Preview
+
+![AI Incident Intelligence Dashboard](ai-triage.png)
+
 An AI-powered incident investigation platform that helps users analyze technical incidents, retrieve relevant historical cases, investigate possible root causes, and generate actionable reports.
 
 The application combines Retrieval-Augmented Generation (RAG), vector similarity search, LLM-based analysis, critic evaluation, and human review to support a structured incident investigation workflow.
